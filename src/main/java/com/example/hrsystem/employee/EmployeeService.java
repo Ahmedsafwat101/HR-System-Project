@@ -21,7 +21,7 @@ public class EmployeeService {
 
     public void addEmployee(EmployeeCreationDTO employeeCreationDTO) {
         Long mngId = employeeCreationDTO.getMngId();
-        checkIfExists(mngId);
+        //checkIfExists(mngId);
         Employee manager = repository.getById(mngId);
         Employee employeeToSave = mapper.toEmployee(employeeCreationDTO, manager);
         repository.save(employeeToSave);
@@ -64,6 +64,7 @@ public class EmployeeService {
         return repository.findAll();
     }
 
+    @Transactional
     public List<EmployeeGetDTO> getEmployeesInTheSameTeam(Long teamId) {
 
         List<EmployeeGetDTO> employees = repository.getEmployeeByTeamEquals(teamId).stream().map(mapper::toDto).collect(Collectors.toList());
@@ -74,6 +75,7 @@ public class EmployeeService {
 
     @Transactional
     public String deleteEmployee(Long employeeId) {
+
         checkIfExists(employeeId);
 
         Employee employee = getEmployee(employeeId);
