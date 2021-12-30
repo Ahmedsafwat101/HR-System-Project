@@ -41,12 +41,12 @@ public class Employee {
     private Gender gender;
 
     @NonNull
-    @Column(name = "emp_gradDate")
+    @Column(name = "emp_grad_date")
     private LocalDateTime gradDate;
 
 
     @NonNull
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection
     @Column(name = "emp_experties")
     private Set<String> experties;
 
@@ -68,6 +68,17 @@ public class Employee {
     @JsonBackReference
     private Set<Employee> employees = new HashSet<>();
 
+    public Employee(Long id, @NonNull String name, @NonNull Double salary, @NonNull LocalDateTime dob, @NonNull Gender gender, @NonNull LocalDateTime gradDate, @NonNull Set<String> experties, @NonNull String department, @NonNull Long team) {
+        this.id = id;
+        this.name = name;
+        this.salary = salary;
+        this.dob = dob;
+        this.gender = gender;
+        this.gradDate = gradDate;
+        this.experties = experties;
+        this.department = department;
+        this.team = team;
+    }
 
     @Override
     public String toString() {

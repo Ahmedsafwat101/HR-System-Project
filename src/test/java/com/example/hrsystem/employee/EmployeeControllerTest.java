@@ -1,36 +1,38 @@
 package com.example.hrsystem.employee;
 
 import com.example.hrsystem.employee.dtos.EmployeeCreationDTO;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.springtestdbunit.annotation.DatabaseSetup;
+import com.github.springtestdbunit.annotation.ExpectedDatabase;
+import com.github.springtestdbunit.assertion.DatabaseAssertionMode;
+import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.Month;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hamcrest.CoreMatchers.is;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
-
+@ActiveProfiles("test")
 class EmployeeControllerTest {
 
     @Autowired
@@ -39,116 +41,119 @@ class EmployeeControllerTest {
     private ObjectMapper objectMapper;
     @Autowired
     private EmployeeDAO employeeDAO;
-
-    private Set<String> expertiseSet;
-    private EmployeeCreationDTO testEmployee;
     private String objAsJson;
 
 
+    protected DatabaseOperation getSetUpOperation() {
+        return DatabaseOperation.REFRESH;
+    }
+
+
+    protected DatabaseOperation getTearDownOperation() {
+        return DatabaseOperation.DELETE_ALL;
+    }
+
     @BeforeEach
-    void setUp() throws JsonProcessingException {
-        expertiseSet = new HashSet<>();
-        expertiseSet.add("Machine Learning");
+    void setUp(){
+        getSetUpOperation();
+    }
+
+    @AfterEach
+    void teatDown(){
+        getTearDownOperation();
+    }
+
+    @Test
+    @DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    public void testGetEmployeeInfoById() throws Exception {
+        Employee employee = employeeDAO.findById(1L).get();
+        assertNotNull(employee);
+        assertEquals("Abbas", employee.getName());
+
+    }
+
+    @Test
+    @DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    @ExpectedDatabase(value = "classpath:dbunit/addEmployeeExpected.xml")
+    public void addEmployeeReturn200() throws Exception {
+        Set<String> expertiseSet = new HashSet<>();
         expertiseSet.add("Web");
 
-        testEmployee = new EmployeeCreationDTO(
-                "Test1",
-                50000.0,
-                "Engineering",
-                2L, Gender.MALE,
-                LocalDateTime.of(LocalDate.of(2021, 12, 20), LocalTime.now())
-                , LocalDateTime.of(LocalDate.of(2021, 12, 20), LocalTime.now()),
-                expertiseSet,
-                1L);
+        EmployeeCreationDTO emp8 = new EmployeeCreationDTO("Zizo",
+                5000.0, "HR", 1L, Gender.MALE, LocalDateTime.of(1986, Month.APRIL, 8, 12, 30),
+                LocalDateTime.of(1986, Month.APRIL, 8, 12, 30),
+                expertiseSet, 1L);
 
-
-        objAsJson = objectMapper.writeValueAsString(testEmployee);
-    }
-
-    @Test
-    void addEmployee() throws Exception {
+        objAsJson = objectMapper.writeValueAsString(emp8);
 
         mockMvc.perform(post("/api/v1/add/").content(objAsJson)
-                .contentType(MediaType.APPLICATION_JSON_VALUE)).andExpect(status().isOk()).andReturn();
-
-
-        Employee employee = employeeDAO.findById(8L).get();
-        assertThat(employee.getName()).isEqualTo("Test1");
+                .contentType(MediaType.APPLICATION_JSON_VALUE)).andReturn();
     }
 
-    @Test
-    public void getEmployee() throws Exception {
-
-        mockMvc.perform(get("/api/v1/get/1")
-                        .accept(MediaType.APPLICATION_JSON_VALUE)).
-                andExpect(status().isOk()).
-                andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("name", is("Abbas")));
-    }
 
     @Test
-    @Transactional
-    public void updateEmployee() throws Exception {
-
-        mockMvc.perform(post("/api/v1/add/").content(objAsJson)
-                .contentType(MediaType.APPLICATION_JSON_VALUE)).andExpect(status().isOk()).andReturn();
-
-        String emp_id = "8";
-        String updatedName = "emp8";
-        testEmployee.setName(updatedName);
-
-
-        objAsJson = objectMapper.writeValueAsString(testEmployee);
-
-        System.out.println("obj:" + objAsJson);
-
-        mockMvc.perform(put("/api/v1/edit/" + emp_id).content(objAsJson)
-                .contentType(MediaType.APPLICATION_JSON_VALUE)
-                .accept(MediaType.APPLICATION_JSON_VALUE)).andExpect(status().isOk()).andReturn();
-
-
-        mockMvc.perform(get("/api/v1/get/" + emp_id)
-                        .accept(MediaType.APPLICATION_JSON_VALUE)).
-                andExpect(status().isOk()).
-                andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("name", is(updatedName)));
-    }
-
-    @Test
-    public void deleteEmployee() throws Exception {
-
+    @DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    @ExpectedDatabase(value = "classpath:dbunit/deleteEmployeeExpected.xml")
+    public void deleteEmployeeReturn200() throws Exception {
         String emp_id = "2";
-
         MvcResult result = mockMvc.perform(delete("/api/v1/delete/" + emp_id)
                 .contentType(MediaType.APPLICATION_JSON_VALUE)).andExpect(status().isOk()).andReturn();
 
         assertThat(result.getResponse().getContentAsString()).isEqualTo("Successfully Deleted!");
     }
 
+
     @Test
-    public void getAllEmployeesUnderSpecificManager() throws Exception {
-        String mngId = "1";
-        mockMvc.perform(get("/api/v1/get/employee/manager/" + mngId)
-                        .accept(MediaType.APPLICATION_JSON_VALUE)).
-                andExpect(status().isOk()).andReturn();
+    //@DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    @ExpectedDatabase(value = "classpath:dbunit/getDirectEmployeesUnderTheSameManagerExpected.xml")
+    public void getDirectEmployeesUnderSpecificManager() throws Exception {
+
+
+        String emp_id = "6";
+        mockMvc.perform(get("/api/v1/get/direct/" + emp_id)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
     }
 
     @Test
+    @DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    @ExpectedDatabase(value = "classpath:dbunit/getAllEmployeesInTheSameTeamExpected.xml")
     public void getAllEmployeesInTheSameTeam() throws Exception {
         String teamId = "1";
         mockMvc.perform(get("/api/v1/get/team/" + teamId)
-                        .accept(MediaType.APPLICATION_JSON_VALUE)).
-                andExpect(status().isOk()).andReturn();
+                        .accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
     }
 
 
     @Test
-    public void getDirectEmployeesUnderSpecificManager() throws Exception {
+    @DatabaseSetup(value = "classpath:dbunit/employeeSeed.xml")
+    @ExpectedDatabase(value = "classpath:dbunit/updateEmployeeExpected.xml", assertionMode = DatabaseAssertionMode.NON_STRICT)
+    public void updateEmployee() throws Exception {
+
         String emp_id = "1";
-        mockMvc.perform(get("/api/v1/get/direct/" + emp_id)
-                        .accept(MediaType.APPLICATION_JSON_VALUE)).
-                andExpect(status().isOk()).andReturn();
+        Set<String> expertiseSet = new HashSet<>();
+        expertiseSet.add("Web");
+
+
+
+        EmployeeCreationDTO updateEmployee = new EmployeeCreationDTO("Zizo",
+                5000.0, "HR", 1L, Gender.MALE, LocalDateTime.of(1986, Month.APRIL, 8, 12, 30),
+                LocalDateTime.of(1986, Month.APRIL, 8, 12, 30),
+                expertiseSet, 1L);
+
+        objAsJson = objectMapper.writeValueAsString(updateEmployee);
+
+
+        mockMvc.perform(put("/api/v1/edit/" + emp_id).content(objAsJson)
+                .contentType(MediaType.APPLICATION_JSON_VALUE)
+                .accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
+
+
+        Employee employee = employeeDAO.findById(1L).get();
+        assertNotNull(employee);
+        assertEquals("Zizo", employee.getName());
     }
+
+
 
 
 }
